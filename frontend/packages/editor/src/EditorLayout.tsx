@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { Button } from '../../ui/src';
-import type { DomainNode, WorkflowDocument } from '../../workflow/src';
+import type { DomainNode, NodeType, WorkflowDocument } from '../../workflow/src';
 import { Canvas } from './Canvas';
 import { Inspector } from './Inspector';
 import { NodePalette } from './NodePalette';
@@ -17,6 +18,12 @@ export function EditorLayout({
   onDocumentChange,
   onSelectionChange,
 }: EditorLayoutProps) {
+  const [addNodeRequest, setAddNodeRequest] = useState<{ type: NodeType; requestId: number }>();
+
+  const handleAddNode = (type: NodeType) => {
+    setAddNodeRequest({ type, requestId: Date.now() });
+  };
+
   return (
     <div className="flex h-screen flex-col bg-slate-900 text-slate-100">
       <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-slate-800 bg-slate-900 px-4">
@@ -29,10 +36,11 @@ export function EditorLayout({
       </header>
 
       <div className="grid min-h-0 flex-1 grid-cols-[260px_1fr_320px]">
-        <NodePalette />
+        <NodePalette onAddNode={handleAddNode} />
         <main className="min-h-0">
           <Canvas
             doc={doc}
+            addNodeRequest={addNodeRequest}
             onDocumentChange={onDocumentChange}
             onSelectionChange={onSelectionChange}
           />

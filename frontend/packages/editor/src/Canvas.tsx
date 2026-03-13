@@ -1,113 +1,142 @@
+import { memo, useEffect, useState } from 'react';
 import {
-  addEdge,
   Background,
   Controls,
   MiniMap,
   ReactFlow,
-  applyEdgeChanges,
-  applyNodeChanges,
   type Connection,
-  type Edge,
   type EdgeChange,
   type Node,
   type NodeChange,
+  type NodeProps,
+  type ReactFlowInstance,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import type { WorkflowDocument } from '../../workflow/src';
+import { getNodeDefinition, type NodeType, type WorkflowDocument } from '../../workflow/src';
+import {
+  applyReactFlowChanges,
+  getViewportFromReactFlow,
+  mapDocumentToReactFlow,
+} from './reactFlowAdapter';
+
+type AddNodeRequest = {
+  type: NodeType;
+  requestId: number;
+};
 
 type CanvasProps = {
   doc: WorkflowDocument;
+  addNodeRequest?: AddNodeRequest;
   onDocumentChange: (next: WorkflowDocument) => void;
   onSelectionChange: (nodeId?: string) => void;
 };
 
-const nodeLabelByType: Record<string, string> = {
-  'trigger.cron': 'Cron Trigger',
-  'trigger.webhook': 'Webhook Trigger',
-  'action.http': 'HTTP Request',
-  'action.transform': 'Transform',
-  'control.if': 'IF',
-  'action.log': 'Log',
+type WorkflowNodeData = {
+  label: string;
+  icon: string;
+  typeBadge: string;
 };
 
-export function Canvas({ doc, onDocumentChange, onSelectionChange }: CanvasProps) {
-  const nodes: Node[] = doc.domain.nodes.map((node) => {
-    const viewNode = doc.view.nodes.find((item) => item.id === node.id);
+const WorkflowNode = memo(({ data }: NodeProps<WorkflowNodeData>) => (
+  <div className="min-w-[180px] rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 shadow-lg">
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-sm font-semibold text-slate-100">
+        {data.icon} {data.label}
+      </span>
+      <span className="rounded bg-slate-700 px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-200">
+        {data.typeBadge}
+      </span>
+    </div>
+  </div>
+));
 
-    return {
-      id: node.id,
-      position: { x: viewNode?.x ?? 0, y: viewNode?.y ?? 0 },
-      data: { label: nodeLabelByType[node.type] ?? node.type },
-      type: 'default',
-      selected: false,
-    };
-  });
+const nodeTypes = {
+  workflowNode: WorkflowNode,
+};
 
-  const edges: Edge[] = doc.domain.edges.map((edge) => ({
-    id: edge.id,
-    source: edge.sourceNodeId,
-    target: edge.targetNodeId,
-  }));
+export function Canvas({ doc, addNodeRequest, onDocumentChange, onSelectionChange }: CanvasProps) {
+  const [instance, setInstance] = useState<ReactFlowInstance | null>(null);
+  const { nodes, edges } = mapDocumentToReactFlow(doc);
+  const workflowNodes = nodes.map((node) => ({ ...node, type: 'workflowNode' }));
 
-  const updateFromReactFlow = (nextNodes: Node[], nextEdges: Edge[]) => {
+  useEffect(() => {
+    if (!addNodeRequest || !instance) {
+      return;
+    }
+
+    const definition = getNodeDefinition(addNodeRequest.type);
+    if (!definition) {
+      return;
+    }
+
+    const { x, y, zoom } = doc.view.viewport;
+    const paneRect = document.querySelector('.react-flow')?.getBoundingClientRect();
+    const centerX = paneRect ? paneRect.left + paneRect.width / 2 : 640;
+    const centerY = paneRect ? paneRect.top + paneRect.height / 2 : 360;
+    const worldX = (centerX - x) / zoom;
+    const worldY = (centerY - y) / zoom;
+    const nodeId = `node-${addNodeRequest.type.replace('.', '-')}-${crypto.randomUUID()}`;
+
     onDocumentChange({
       ...doc,
       domain: {
         ...doc.domain,
-        edges: nextEdges.map((edge) => ({
-          id: edge.id,
-          sourceNodeId: edge.source,
-          sourcePort: 'out',
-          targetNodeId: edge.target,
-          targetPort: 'in',
-        })),
+        nodes: [
+          ...doc.domain.nodes,
+          {
+            id: nodeId,
+            type: definition.type,
+            typeVersion: definition.typeVersion,
+            params: definition.defaultParams(),
+          },
+        ],
       },
       view: {
         ...doc.view,
-        nodes: nextNodes.map((node) => ({
-          ...doc.view.nodes.find((item) => item.id === node.id),
-          id: node.id,
-          x: node.position.x,
-          y: node.position.y,
-        })),
+        nodes: [...doc.view.nodes, { id: nodeId, x: worldX, y: worldY }],
       },
     });
-  };
+  }, [addNodeRequest, doc, instance, onDocumentChange]);
 
   const onNodesChange = (changes: NodeChange[]) => {
-    const changedNodes = applyNodeChanges(changes, nodes);
-    updateFromReactFlow(changedNodes, edges);
+    onDocumentChange(applyReactFlowChanges(doc, { nodeChanges: changes }));
   };
 
   const onEdgesChange = (changes: EdgeChange[]) => {
-    const changedEdges = applyEdgeChanges(changes, edges);
-    updateFromReactFlow(nodes, changedEdges);
+    onDocumentChange(applyReactFlowChanges(doc, { edgeChanges: changes }));
   };
 
   const onConnect = (connection: Connection) => {
-    const connectedEdges = addEdge(
-      {
-        id: `edge-${crypto.randomUUID()}`,
-        source: connection.source ?? '',
-        target: connection.target ?? '',
+    onDocumentChange(applyReactFlowChanges(doc, { connection }));
+  };
+
+  const onMoveEnd = (_event: unknown, flowInstance: ReactFlowInstance) => {
+    const viewport = getViewportFromReactFlow(flowInstance);
+
+    onDocumentChange({
+      ...doc,
+      view: {
+        ...doc.view,
+        viewport,
       },
-      edges,
-    );
-    updateFromReactFlow(nodes, connectedEdges);
+    });
   };
 
   return (
     <div className="h-full w-full bg-slate-950">
       <ReactFlow
-        nodes={nodes}
+        nodes={workflowNodes}
         edges={edges}
+        nodeTypes={nodeTypes}
+        onInit={setInstance}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onMoveEnd={onMoveEnd}
+        defaultViewport={doc.view.viewport}
         onSelectionChange={({ nodes: selectedNodes }) =>
-          onSelectionChange(selectedNodes[0]?.id)
+          onSelectionChange((selectedNodes[0] as Node | undefined)?.id)
         }
-        fitView
       >
         <MiniMap />
         <Background gap={16} size={1} />
