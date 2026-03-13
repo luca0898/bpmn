@@ -6,6 +6,43 @@ export type NodeType =
   | 'control.if'
   | 'action.log';
 
+export type PortKind = 'data' | 'control';
+export type PortDataType = 'json' | 'string' | 'number' | 'boolean' | 'binary';
+
+export type PortDef = {
+  name: string;
+  kind: PortKind;
+  dataType?: PortDataType;
+};
+
+export type NodeCategory = 'Triggers' | 'Actions' | 'Control';
+
+export type JsonSchema = {
+  $schema?: 'http://json-schema.org/draft-07/schema#';
+  type?: 'object' | 'array' | 'string' | 'number' | 'integer' | 'boolean' | 'null';
+  properties?: Record<string, JsonSchema>;
+  required?: string[];
+  items?: JsonSchema;
+  enum?: Array<string | number | boolean | null>;
+  description?: string;
+  default?: unknown;
+};
+
+export type NodeDefinition = {
+  type: NodeType;
+  typeVersion: number;
+  displayName: string;
+  category: NodeCategory;
+  description: string;
+  icon: string;
+  ports: {
+    inputs: PortDef[];
+    outputs: PortDef[];
+  };
+  paramSchema: JsonSchema;
+  defaultParams: () => Record<string, unknown>;
+};
+
 export type WorkflowDocument = {
   id: string;
   name: string;
