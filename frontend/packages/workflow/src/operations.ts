@@ -122,7 +122,9 @@ export const applyOperation = (doc: WorkflowDocument, op: Operation): WorkflowDo
         view: {
           ...doc.view,
           nodes: doc.view.nodes.filter((node) => node.id !== op.nodeId),
-          edges: doc.view.edges.filter((edge) => remainingEdges.some((candidate) => candidate.id === edge.id)),
+          edges: doc.view.edges.filter((edge) =>
+            remainingEdges.some((candidate) => candidate.id === edge.id),
+          ),
         },
       };
     }
@@ -166,3 +168,9 @@ export const applyOperation = (doc: WorkflowDocument, op: Operation): WorkflowDo
 export const serializeOperation = (op: Operation): string => JSON.stringify(op);
 
 export const deserializeOperation = (raw: string): Operation => JSON.parse(raw) as Operation;
+
+export const replaySnapshotWithOperations = (
+  snapshot: Snapshot,
+  operations: Operation[],
+): WorkflowDocument =>
+  operations.reduce((acc, operation) => applyOperation(acc, operation), snapshot.document);

@@ -13,6 +13,7 @@ import {
 import 'reactflow/dist/style.css';
 import {
   getNodeDefinition,
+  validateWorkflow,
   type AddEdgeOperation,
   type AddNodeOperation,
   type MoveNodeOperation,
@@ -59,12 +60,16 @@ export function Canvas({ doc, addNodeRequest, onApplyOperations, onSelectionChan
       return;
     }
 
-    const { x, y, zoom } = doc.view.viewport;
-    const paneRect = document.querySelector('.react-flow')?.getBoundingClientRect();
-    const centerX = paneRect ? paneRect.left + paneRect.width / 2 : 640;
-    const centerY = paneRect ? paneRect.top + paneRect.height / 2 : 360;
-    const worldX = (centerX - x) / zoom;
-    const worldY = (centerY - y) / zoom;
+    const pane = document.querySelector('.react-flow__viewport')?.parentElement;
+    const rect = pane?.getBoundingClientRect();
+
+    const position = rect
+      ? instance.screenToFlowPosition({
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2,
+        })
+      : { x: 640, y: 360 };
+
     const nodeId = `node-${addNodeRequest.type.replace('.', '-')}-${crypto.randomUUID()}`;
 
     const operation: AddNodeOperation = {
@@ -75,11 +80,11 @@ export function Canvas({ doc, addNodeRequest, onApplyOperations, onSelectionChan
         typeVersion: definition.typeVersion,
         params: definition.defaultParams(),
       },
-      view: { id: nodeId, x: worldX, y: worldY },
+      view: { id: nodeId, x: position.x, y: position.y },
     };
 
     onApplyOperations([operation]);
-  }, [addNodeRequest, doc.view.viewport, instance, onApplyOperations]);
+  }, [addNodeRequest, instance, onApplyOperations]);
 
   const onNodesChange = (changes: NodeChange[]) => {
     const operations: Operation[] = [];
@@ -130,6 +135,22 @@ export function Canvas({ doc, addNodeRequest, onApplyOperations, onSelectionChan
         targetPort: targetHandle ?? DEFAULT_TARGET_PORT,
       },
     };
+
+    const candidateDoc: WorkflowDocument = {
+      ...doc,
+      domain: {
+        ...doc.domain,
+        edges: [...doc.domain.edges, op.edge],
+      },
+    };
+
+    const validation = validateWorkflow(candidateDoc);
+    const edgeError = validation.errors.find((error) => error.edgeId === op.edge.id);
+
+    if (edgeError) {
+      alert(edgeError.message);
+      return;
+    }
 
     onApplyOperations([op]);
   };

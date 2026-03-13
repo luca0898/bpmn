@@ -5,15 +5,12 @@ type NodePaletteProps = {
   onAddNode: (type: NodeType) => void;
 };
 
-const groups = getAllNodeDefinitions().reduce(
-  (acc, definition) => {
-    const categoryItems = acc.get(definition.category) ?? [];
-    categoryItems.push(definition);
-    acc.set(definition.category, categoryItems);
-    return acc;
-  },
-  new Map<string, ReturnType<typeof getAllNodeDefinitions>>(),
-);
+const groups = getAllNodeDefinitions().reduce((acc, definition) => {
+  const categoryItems = acc.get(definition.category) ?? [];
+  categoryItems.push(definition);
+  acc.set(definition.category, categoryItems);
+  return acc;
+}, new Map<string, ReturnType<typeof getAllNodeDefinitions>>());
 
 export function NodePalette({ onAddNode }: NodePaletteProps) {
   return (
@@ -28,7 +25,8 @@ export function NodePalette({ onAddNode }: NodePaletteProps) {
                   <button
                     type="button"
                     onClick={() => onAddNode(definition.type)}
-                    className="w-full rounded-md border border-slate-700 bg-slate-800 px-2 py-1 text-left text-sm text-slate-200 hover:bg-slate-700"
+                    className="w-full rounded-md border border-slate-700 bg-slate-800 px-2 py-1 text-left text-sm text-slate-200 hover:bg-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+                    aria-label={`Add ${definition.displayName} node`}
                   >
                     <div className="font-medium">
                       {definition.icon} {definition.displayName}
