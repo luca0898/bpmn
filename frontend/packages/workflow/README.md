@@ -1,0 +1,3 @@
+# @bpmn/workflow
+
+Pacote placeholder.

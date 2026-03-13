@@ -1,0 +1,3 @@
+# @bpmn/ui
+
+Pacote placeholder.
