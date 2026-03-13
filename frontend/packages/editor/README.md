@@ -1,0 +1,3 @@
+# @bpmn/editor
+
+Pacote placeholder.
