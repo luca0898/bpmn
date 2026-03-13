@@ -1,7 +1,26 @@
+import { useMemo, useState } from 'react';
+import { EditorLayout } from '../../../packages/editor/src';
+import {
+  createStarterWorkflowDocument,
+  getNodeById,
+  type WorkflowDocument,
+} from '../../../packages/workflow/src';
+
 export default function App() {
+  const [doc, setDoc] = useState<WorkflowDocument>(() => createStarterWorkflowDocument());
+  const [selectedNodeId, setSelectedNodeId] = useState<string>();
+
+  const selectedNode = useMemo(
+    () => (selectedNodeId ? getNodeById(doc, selectedNodeId) : undefined),
+    [doc, selectedNodeId],
+  );
+
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-100">
-      <h1 className="text-5xl font-bold tracking-tight">BPMN</h1>
-    </main>
+    <EditorLayout
+      doc={doc}
+      selectedNode={selectedNode}
+      onDocumentChange={setDoc}
+      onSelectionChange={setSelectedNodeId}
+    />
   );
 }
