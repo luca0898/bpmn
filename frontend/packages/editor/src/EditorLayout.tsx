@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button } from '../../ui/src';
-import type { DomainNode, NodeType, WorkflowDocument } from '../../workflow/src';
+import type { DomainNode, NodeType, Operation, WorkflowDocument } from '../../workflow/src';
 import { Canvas } from './Canvas';
 import { Inspector } from './Inspector';
 import { NodePalette } from './NodePalette';
@@ -8,15 +8,21 @@ import { NodePalette } from './NodePalette';
 type EditorLayoutProps = {
   doc: WorkflowDocument;
   selectedNode?: DomainNode;
-  onDocumentChange: (next: WorkflowDocument) => void;
+  onApplyOperations: (operations: Operation[]) => void;
+  onUpdateNodeParams: (nodeId: string, partialParams: Record<string, unknown>) => void;
   onSelectionChange: (nodeId?: string) => void;
+  onNew: () => void;
+  onSaveSnapshot: () => void;
 };
 
 export function EditorLayout({
   doc,
   selectedNode,
-  onDocumentChange,
+  onApplyOperations,
+  onUpdateNodeParams,
   onSelectionChange,
+  onNew,
+  onSaveSnapshot,
 }: EditorLayoutProps) {
   const [addNodeRequest, setAddNodeRequest] = useState<{ type: NodeType; requestId: number }>();
 
@@ -29,9 +35,8 @@ export function EditorLayout({
       <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-slate-800 bg-slate-900 px-4">
         <h1 className="text-lg font-semibold">BPMN Studio</h1>
         <div className="flex gap-2">
-          <Button>New</Button>
-          <Button>Open</Button>
-          <Button>Save snapshot</Button>
+          <Button onClick={onNew}>New</Button>
+          <Button onClick={onSaveSnapshot}>Save snapshot</Button>
         </div>
       </header>
 
@@ -41,11 +46,11 @@ export function EditorLayout({
           <Canvas
             doc={doc}
             addNodeRequest={addNodeRequest}
-            onDocumentChange={onDocumentChange}
+            onApplyOperations={onApplyOperations}
             onSelectionChange={onSelectionChange}
           />
         </main>
-        <Inspector selectedNode={selectedNode} />
+        <Inspector selectedNode={selectedNode} updateNodeParams={onUpdateNodeParams} />
       </div>
     </div>
   );
